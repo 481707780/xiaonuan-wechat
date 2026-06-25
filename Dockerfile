@@ -1,13 +1,19 @@
-﻿FROM python:3.11-slim
+﻿FROM python:3.12-slim
 
 WORKDIR /app
 
-# 复制依赖并安装
-COPY requirements.txt .
+# 安装依赖
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制项目文件
-COPY . .
+# 复制代码
+COPY backend/ ./backend/
+COPY frontend/ ./frontend/
+COPY data/ ./data/
+COPY run.py .
+
+# 数据目录权限
+RUN chmod -R 755 /app/data
 
 # 暴露端口
 EXPOSE 8000
