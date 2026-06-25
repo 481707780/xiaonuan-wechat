@@ -1,5 +1,5 @@
-﻿# ============================================================
-# 小暖 - AI 伴侣核心服务（风格数据注入版）
+# ============================================================
+# 小暖 - AI 伴侣核心服务（SillyTavern 风格注入版）
 # ============================================================
 import logging
 from typing import AsyncGenerator
@@ -10,7 +10,7 @@ from ..config import (
     MAX_TOKENS, TEMPERATURE
 )
 from .session import session_manager
-from .style_loader import build_style_augmented_system_prompt, reload as reload_style
+from .style_loader import build_sillytavern_system_prompt, reload as reload_style
 
 logger = logging.getLogger(__name__)
 
@@ -21,20 +21,18 @@ client = AsyncOpenAI(
 )
 
 
-def _build_system_prompt(name: str = None) -> str:
-    """构建带名字的风格注入系统提示"""
+def _build_system_prompt(name=None):
+    """构建带名字的风格注入系统提示（SillyTavern 风格）"""
     n = name or COMPANION_NAME
     base_prompt = COMPANION_SYSTEM_PROMPT.replace("{name}", n)
-    # 注入风格数据：将聊天风格分析注入到系统提示词中
-    augmented = build_style_augmented_system_prompt(base_prompt)
+
+    # 使用 SillyTavern 风格注入：用示例对话填充 {style_examples} 占位符
+    augmented = build_sillytavern_system_prompt(base_prompt)
+    logger.info(f"系统提示词构建完成，长度: {len(augmented)} 字")
     return augmented
 
 
-async def chat(
-    user_id: str,
-    message: str,
-    companion_name: str = None
-) -> str:
+async def chat(user_id, message, companion_name=None):
     """与 AI 伴侣对话（非流式）"""
     name = companion_name or COMPANION_NAME
     await session_manager.add_message(user_id, "user", message)
@@ -61,11 +59,7 @@ async def chat(
         return fallback
 
 
-async def chat_stream(
-    user_id: str,
-    message: str,
-    companion_name: str = None
-) -> AsyncGenerator[str, None]:
+async def chat_stream(user_id, message, companion_name=None):
     """与 AI 伴侣对话（流式输出）"""
     name = companion_name or COMPANION_NAME
     await session_manager.add_message(user_id, "user", message)

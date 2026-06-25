@@ -169,3 +169,50 @@ def reload():
     _cached_female_replies = []
     _cached_my_style_lines = []
     logger.info("🔄 风格数据缓存已清空，下次访问将重新加载")
+
+
+def build_sillytavern_style_examples(max_examples=60):
+    """以 SillyTavern 风格构建对话示例文本"""
+    import random
+    profile = load_style_profile()
+    female_replies = load_female_replies(80)
+    my_style = load_my_style_lines(50)
+
+    parts = []
+    if profile and profile.get("profile"):
+        parts.append("【你的整体说话风格】" + chr(10) + profile["profile"])
+
+    example_sections = []
+    if profile and profile.get("examples"):
+        selected = random.sample(profile["examples"], min(20, len(profile["examples"])))
+        example_sections.append("=== 日常对话 ===")
+        for ex in selected:
+            example_sections.append("  " + ex)
+
+    if female_replies:
+        selected = random.sample(female_replies, min(25, len(female_replies)))
+        example_sections.append("")
+        example_sections.append("=== 和朋友聊天 ===")
+        for ex in selected:
+            example_sections.append("  " + ex)
+
+    if my_style:
+        selected = random.sample(my_style, min(15, len(my_style)))
+        example_sections.append("")
+        example_sections.append("=== 日常吐槽 ===")
+        for ex in selected:
+            example_sections.append("  " + ex)
+
+    if example_sections:
+        parts.append(chr(10).join(example_sections))
+
+    return chr(10).join(parts)
+
+
+def build_sillytavern_system_prompt(base_prompt):
+    """构建 SillyTavern 风格的增强系统提示词"""
+    examples_text = build_sillytavern_style_examples()
+    if "{style_examples}" in base_prompt:
+        return base_prompt.replace("{style_examples}", examples_text)
+    else:
+        return base_prompt + chr(10) * 2 + "【风格参考】" + chr(10) + examples_text
