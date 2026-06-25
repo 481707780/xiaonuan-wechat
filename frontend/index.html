@@ -1,0 +1,421 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f9f5f0">
+<title>小暖 - AI 情感伴侣</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<style>
+/* ========== Reset & Variables ========== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f9f5f0;--bg2:#fff;--text:#3d3229;--sub:#8b7e74;
+  --bubble-me:#ffecd2;--bubble-you:#fff;
+  --accent:#e8876a;--accent-hover:#d4725a;--accent-soft:#fdf0eb;
+  --border:#e8ddd0;--shadow:0 2px 12px rgba(0,0,0,0.06);
+  --radius:18px;--radius-sm:12px;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --transition:0.25s ease;
+}
+.dark{
+  --bg:#1a1817;--bg2:#252221;--text:#e8ddd0;--sub:#9b8e84;
+  --bubble-me:#3d2a20;--bubble-you:#2a2522;
+  --accent:#d4846a;--accent-hover:#e8957a;--accent-soft:#2a1e1a;
+  --border:#3a3530;--shadow:0 2px 12px rgba(0,0,0,0.2);
+}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  display:flex;flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  transition:background var(--transition),color var(--transition);
+}
+
+/* ========== Header ========== */
+.header{
+  flex-shrink:0;background:var(--bg2);padding:12px 16px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);
+  box-shadow:var(--shadow);z-index:10;
+  transition:background var(--transition),border var(--transition);
+}
+.header .avatar{
+  width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,#f9c5d1,#f4a4b8);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;cursor:pointer;
+  animation:pulse 3s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.header .info{flex:1;min-width:0}
+.header .name{font-size:16px;font-weight:600;line-height:1.3}
+.header .status-tag{
+  font-size:11px;color:var(--accent);display:flex;align-items:center;gap:4px;
+  background:var(--accent-soft);padding:2px 8px;border-radius:10px;width:fit-content;
+  transition:background var(--transition);
+}
+.header .status-dot{width:6px;height:6px;border-radius:50%;background:#6cc070;display:inline-block}
+.header .actions{display:flex;gap:2px}
+.header .btn-icon{
+  width:36px;height:36px;border-radius:50%;border:none;
+  background:transparent;font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s;color:var(--sub);
+}
+.header .btn-icon:active{background:var(--border)}
+
+/* ========== Chat Area ========== */
+.chat{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:16px 10px;display:flex;flex-direction:column;gap:6px;
+  scroll-behavior:smooth;-webkit-overflow-scrolling:touch;
+}
+.chat::-webkit-scrollbar{width:4px}
+.chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* ========== Bubbles ========== */
+.bubble-row{display:flex;gap:8px;animation:fadeUp .35s ease-out}
+.bubble-row.you{align-self:flex-start;max-width:84%}
+.bubble-row.me{align-self:flex-end;max-width:84%}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.bubble-wrap{display:flex;flex-direction:column;gap:2px}
+.bubble{
+  padding:10px 14px;border-radius:var(--radius);font-size:15px;
+  line-height:1.55;word-break:break-word;position:relative;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);transition:background var(--transition);
+}
+.you .bubble{background:var(--bubble-you);border-bottom-left-radius:4px}
+.me .bubble{background:var(--bubble-me);border-bottom-right-radius:4px}
+.bubble-time{
+  font-size:10px;color:var(--sub);padding:0 14px;
+  transition:color var(--transition);
+}
+.me .bubble-time{text-align:right}
+
+.typing-indicator{
+  align-self:flex-start;padding:10px 14px;background:var(--bubble-you);
+  border-radius:var(--radius);border-bottom-left-radius:4px;
+  display:flex;gap:4px;align-items:center;transition:background var(--transition);
+}
+.typing-indicator span{
+  width:7px;height:7px;border-radius:50%;background:var(--accent);
+  animation:bounce 1.4s infinite ease-in-out both;opacity:0.6;
+}
+.typing-indicator span:nth-child(1){animation-delay:-0.32s}
+.typing-indicator span:nth-child(2){animation-delay:-0.16s}
+@keyframes bounce{0%,80%,100%{transform:scale(0.6)}40%{transform:scale(1)}}
+
+/* ========== Quick Replies ========== */
+.quick-replies{
+  flex-shrink:0;display:flex;gap:8px;padding:4px 12px 8px;
+  overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap;
+  transition:opacity .2s;
+}
+.quick-replies::-webkit-scrollbar{display:none}
+.quick-reply{
+  flex-shrink:0;background:var(--bg2);color:var(--accent);
+  border:1px solid var(--accent);border-radius:20px;
+  padding:6px 14px;font-size:13px;cursor:pointer;
+  white-space:nowrap;font-family:var(--font);
+  transition:all .15s,background var(--transition),color var(--transition),border var(--transition);
+}
+.quick-reply:active{background:var(--accent);color:#fff;transform:scale(0.96)}
+
+/* ========== Input Area ========== */
+.input-area{
+  flex-shrink:0;background:var(--bg2);padding:8px 12px;
+  padding-bottom:max(8px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;
+  box-shadow:0 -1px 8px rgba(0,0,0,0.04);
+  transition:background var(--transition),border var(--transition);
+}
+.input-area textarea{
+  flex:1;border:1px solid var(--border);border-radius:24px;
+  padding:10px 16px;font-size:15px;font-family:var(--font);
+  resize:none;outline:none;background:var(--bg);color:var(--text);
+  max-height:100px;line-height:1.4;transition:all .2s,border-color .2s;
+}
+.input-area textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.voice-btn,.send-btn{
+  width:42px;height:42px;border-radius:50%;border:none;
+  cursor:pointer;flex-shrink:0;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+}
+.voice-btn{background:var(--bg);color:var(--sub)}
+.voice-btn:active{background:var(--border);transform:scale(0.92)}
+.voice-btn.recording{background:#e74c3c;color:#fff;animation:recPulse 1s ease-in-out infinite}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,0.4)}50%{box-shadow:0 0 0 10px rgba(231,76,60,0)}}
+
+.send-btn{background:var(--accent);color:#fff}
+.send-btn:active{transform:scale(0.92);background:var(--accent-hover)}
+.send-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* ========== Welcome ========== */
+.welcome{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:32px;gap:12px;text-align:center;
+}
+.welcome .emoji{font-size:64px;margin-bottom:4px}
+.welcome h2{font-size:22px;font-weight:600}
+.welcome p{font-size:14px;color:var(--sub);line-height:1.6;max-width:280px;transition:color var(--transition)}
+.welcome .hints{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px}
+.welcome .hint{
+  background:var(--bubble-me);color:var(--text);padding:8px 16px;
+  border-radius:20px;font-size:13px;cursor:pointer;
+  transition:all .15s;border:none;font-family:var(--font);
+}
+.welcome .hint:active{transform:scale(0.96);box-shadow:var(--shadow)}
+
+/* ========== Toasts ========== */
+.toast{
+  position:fixed;top:60px;left:50%;transform:translateX(-50%);
+  background:#3d3229;color:#fff;padding:8px 20px;border-radius:20px;
+  font-size:13px;z-index:100;pointer-events:none;
+  animation:toastIn .3s ease-out,toastOut .3s ease-in 1.7s forwards;
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes toastOut{from{opacity:1}to{opacity:0}}
+
+/* ========== Mood Check-in Modal ========== */
+.mood-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;
+  display:flex;align-items:center;justify-content:center;
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.mood-card{
+  background:var(--bg2);border-radius:20px;padding:24px;width:90%;
+  max-width:320px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15);
+  transition:background var(--transition);
+}
+.mood-card h3{font-size:18px;margin-bottom:16px}
+.mood-emojis{display:flex;justify-content:center;gap:16px;margin-bottom:16px}
+.mood-emoji{
+  font-size:36px;cursor:pointer;padding:8px;border-radius:16px;
+  transition:all .15s;border:2px solid transparent;
+}
+.mood-emoji:hover,.mood-emoji:active{background:var(--accent-soft);border-color:var(--accent);transform:scale(1.15)}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="avatar" onclick="showMoodCheckin()">🌸</div>
+  <div class="info">
+    <div class="name">小暖</div>
+    <div class="status-tag"><span class="status-dot"></span>在线</div>
+  </div>
+  <div class="actions">
+    <button class="btn-icon" onclick="toggleDark()" title="暗色模式">🌙</button>
+    <button class="btn-icon" onclick="clearChat()" title="清除对话">🗑️</button>
+  </div>
+</div>
+
+<!-- Chat -->
+<div class="chat" id="chat"></div>
+
+<!-- Quick Replies -->
+<div class="quick-replies" id="quickReplies"></div>
+
+<!-- Input -->
+<div class="input-area">
+  <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="语音输入">🎤</button>
+  <textarea id="input" rows="1" placeholder="说点什么吧…" autofocus></textarea>
+  <button class="send-btn" id="sendBtn" onclick="send()">➤</button>
+</div>
+
+<script>
+// ========== State ==========
+const USER_ID_KEY = 'sc_uid';
+let userId = localStorage.getItem(USER_ID_KEY);
+if (!userId) userId = 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), localStorage.setItem(USER_ID_KEY, userId);
+
+const chatEl = document.getElementById('chat');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const voiceBtn = document.getElementById('voiceBtn');
+const quickEl = document.getElementById('quickReplies');
+let isGenerating = false, isDark = localStorage.getItem('sc_dark') === '1';
+
+// ========== Dark Mode ==========
+if (isDark) { document.body.classList.add('dark'); document.querySelector('.btn-icon').textContent = '☀️'; }
+function toggleDark() {
+  isDark = !isDark;
+  document.body.classList.toggle('dark', isDark);
+  localStorage.setItem('sc_dark', isDark ? '1' : '0');
+  document.querySelector('.btn-icon').textContent = isDark ? '☀️' : '🌙';
+}
+
+// ========== Init ==========
+function init() {
+  showWelcome();
+  renderQuickReplies('welcome');
+  inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+  inputEl.addEventListener('input', () => { inputEl.style.height = 'auto'; inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px'; });
+}
+
+const quickSets = {
+  welcome: ['今天有点累…', '想和你聊聊天', '给我讲个暖心故事吧', '最近有点迷茫'],
+  happy: ['分享一个好消息！', '今天超开心', '我们聊点有趣的'],
+  sad: ['心情不太好', '想找人倾诉', '不知道怎么面对'],
+  default: ['今天过得怎么样？', '你在干嘛呢～', '好无聊啊…', '说个笑话吧']
+};
+
+function renderQuickReplies(mood) {
+  const items = quickSets[mood] || quickSets.default;
+  quickEl.innerHTML = items.map(t => `<button class="quick-reply" onclick="quickSend(this.textContent)">${t}</button>`).join('');
+}
+
+function quickSend(text) { inputEl.value = text; send(); }
+
+function showWelcome() {
+  chatEl.innerHTML = '<div class="welcome"><div class="emoji">🌸</div><h2>嗨，我是小暖</h2><p>开心的事、烦恼的事，什么都可以跟我说。我一直在这里。</p></div>';
+}
+
+// ========== Send ==========
+async function send() {
+  const msg = inputEl.value.trim();
+  if (!msg || isGenerating) return;
+  const welcome = chatEl.querySelector('.welcome');
+  if (welcome) welcome.remove();
+
+  appendBubble('me', msg);
+  inputEl.value = ''; inputEl.style.height = 'auto';
+  renderQuickReplies('default');
+
+  isGenerating = true; sendBtn.disabled = true;
+  const typing = showTyping();
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({user_id:userId, message:msg})
+    });
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+    removeTyping(typing);
+    appendBubble('you', data.reply);
+    // Detect mood from reply for quick replies
+    const mood = data.reply.includes('开心') || data.reply.includes('棒') ? 'happy'
+      : data.reply.includes('难过') || data.reply.includes('累') ? 'sad' : 'default';
+    renderQuickReplies(mood);
+  } catch (err) {
+    removeTyping(typing);
+    appendBubble('you', '唔…网络好像不太好，等会儿再试试？😅');
+  } finally {
+    isGenerating = false; sendBtn.disabled = false; inputEl.focus();
+  }
+}
+
+// ========== Bubbles ==========
+function nowTime() { const d = new Date(); return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0'); }
+
+function appendBubble(who, text) {
+  const row = document.createElement('div');
+  row.className = 'bubble-row ' + who;
+  row.innerHTML = '<div class="bubble-wrap"><div class="bubble">' + escapeHtml(text) + '</div><div class="bubble-time">' + nowTime() + '</div></div>';
+  chatEl.appendChild(row);
+  scrollToBottom();
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'typing-indicator';
+  el.innerHTML = '<span></span><span></span><span></span>';
+  chatEl.appendChild(el);
+  scrollToBottom();
+  return el;
+}
+
+function removeTyping(el) { if (el && el.parentNode) el.remove(); }
+
+function scrollToBottom() {
+  requestAnimationFrame(() => { chatEl.scrollTop = chatEl.scrollHeight; });
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ========== Voice Input ==========
+let recognition = null, isRecording = false;
+
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    showToast('你的浏览器不支持语音输入 😢');
+    return;
+  }
+  if (isRecording) { stopVoice(); return; }
+  startVoice();
+}
+
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'zh-CN';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  recognition.onresult = e => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    inputEl.value = transcript;
+  };
+  recognition.onend = () => { stopVoice(); };
+  recognition.onerror = () => { stopVoice(); showToast('没听清，再说一次？'); };
+  recognition.start();
+  isRecording = true;
+  voiceBtn.classList.add('recording');
+  voiceBtn.textContent = '⏹';
+}
+
+function stopVoice() {
+  if (recognition) { recognition.stop(); recognition = null; }
+  isRecording = false;
+  voiceBtn.classList.remove('recording');
+  voiceBtn.textContent = '🎤';
+}
+
+// ========== Mood Check-in ==========
+function showMoodCheckin() {
+  const overlay = document.createElement('div');
+  overlay.className = 'mood-overlay';
+  overlay.innerHTML = '<div class="mood-card"><h3>现在心情怎么样？</h3><div class="mood-emojis">' +
+    ['😊','😢','😤','😴','🥰','😎'].map((e,i) => '<span class="mood-emoji" onclick="moodSelected(\''+e+'\',this.parentElement.parentElement.parentElement)">'+e+'</span>').join('') +
+    '</div></div>';
+  overlay.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function moodSelected(emoji, overlay) {
+  overlay.remove();
+  const moods = {'😊':'今天心情不错～','😢':'有点难过…','😤':'好烦啊','😴':'好累啊','🥰':'感觉被爱着','😎':'状态超好！'};
+  inputEl.value = moods[emoji] || '今天心情…';
+  send();
+}
+
+// ========== Clear ==========
+async function clearChat() {
+  if (!confirm('确定要清除对话历史吗？')) return;
+  try { await fetch('/api/chat/clear', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId})}); } catch(e){}
+  showWelcome(); renderQuickReplies('welcome'); showToast('对话已重置 💫');
+}
+
+function showToast(msg) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2000);
+}
+
+// ========== PWA ==========
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+
+init();
+</script>
+</body>
+</html>

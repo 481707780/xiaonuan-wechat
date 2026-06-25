@@ -1,0 +1,26 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.DS_Store
+Thumbs.db
+*.log
+*.log.*
+server_out.log
+server_err.log
+tunnel_out.log
+tunnel_err.log
+test_*.json
+fix_*.py
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
