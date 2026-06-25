@@ -95,7 +95,7 @@ class ProactiveEngine:
                     if k not in ulog or (now - ulog[k]).seconds > 14400:
                         msg = await generate_msg(uid, window)
                         if msg:
-                            yield uid, msg
+                            await send_proactive(uid, msg)
                             self._log.setdefault(uid, {})[k] = now
                             continue
 
@@ -110,7 +110,7 @@ class ProactiveEngine:
                         if k not in ulog or (now - ulog[k]).seconds > 21600:
                             msg = await generate_msg(uid, st)
                             if msg:
-                                yield uid, msg
+                                await send_proactive(uid, msg)
                                 self._log.setdefault(uid, {})[k] = now
                                 break
 
@@ -122,8 +122,7 @@ class ProactiveEngine:
         logger.info(f"Active engine started ({interval}min interval)")
         while self._running:
             try:
-                async for uid, msg in self.check():
-                    logger.info(f"Proactive: {uid} -> {msg[:50]}")
+                await self.check()
             except Exception as e:
                 logger.error(f"Loop error: {e}")
             await asyncio.sleep(interval * 60)
@@ -133,3 +132,15 @@ class ProactiveEngine:
 
 
 engine = ProactiveEngine()
+
+async def send_proactive(uid, msg):
+    """发送主动消息（优先微信客服消息，否则记日志）"""
+    from .wechat_api import wechat_client
+    sent = await wechat_client.send_text(uid, msg)
+    if sent:
+        logger.info(f"[微信推送] {uid}: {msg[:40]}")
+    else:
+        logger.info(f"[日志推送] {uid}: {msg[:40]}")
+    # 同时也存到会话历史中
+    from .session import session_manager
+    await session_manager.add_message(uid, "assistant", msg)

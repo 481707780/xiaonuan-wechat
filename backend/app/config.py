@@ -77,6 +77,7 @@ TEMPERATURE = float(os.getenv("TEMPERATURE", "0.85"))
 WECHAT_TOKEN = os.getenv("WECHAT_TOKEN", "your_wechat_token")
 WECHAT_ENCODING_AES_KEY = os.getenv("WECHAT_ENCODING_AES_KEY", "")
 WECHAT_APP_ID = os.getenv("WECHAT_APP_ID", "")
+WECHAT_APP_SECRET = os.getenv("WECHAT_APP_SECRET", "")
 
 # --- 服务配置 ---
 HOST = os.getenv("HOST", "0.0.0.0")
