@@ -41,6 +41,27 @@ async def chat(user_id, message, companion_name=None):
     system_prompt = _build_system_prompt(name)
 
     messages = [{"role": "system", "content": system_prompt}] + context
+    
+    # 主动关心检测：如果用户很久没说话，在回复中自然表达关心
+    try:
+        sessions = await session_manager.get_all_sessions()
+        now_ts = __import__("time").time()
+        for s in sessions:
+            if s["user_id"] == user_id:
+                hours = (now_ts - s["last_active"]) / 3600
+                if 2 <= hours <= 48:
+                    hint = ""
+                    if hours >= 12:
+                        hint = "【对方大半天没联系你了。回复时先用温柔的语气关心一下，然后再回应ta说的话。要自然，不要生硬。】"
+                    elif hours >= 5:
+                        hint = "【对方几小时没说话了。回复时自然地表达一点想念，然后再回应ta说的内容。】"
+                    elif hours >= 2:
+                        hint = "【对方有一阵子没出现了。回复时先带点惊喜的语气，然后再正常回应。】"
+                    if hint:
+                        messages[0]["content"] += "\n\n" + hint
+                break
+    except Exception:
+        pass
 
     try:
         response = await client.chat.completions.create(

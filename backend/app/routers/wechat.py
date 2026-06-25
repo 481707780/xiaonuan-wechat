@@ -153,7 +153,10 @@ async def proactive_status():
 async def trigger_proactive(user_id: str):
     """手动触发主动消息，给指定用户发一条"""
     from ..services.proactive import generate_msg
+    from ..services.session import session_manager
     msg = await generate_msg(user_id, "short")
     if msg:
+        await session_manager.add_message(user_id, "assistant", msg)
+        logger.info(f"[主动推送] 给 {user_id}: {msg[:40]}")
         return {"user_id": user_id, "message": msg, "status": "已生成 ✅"}
     return {"status": "生成失败", "message": None}
