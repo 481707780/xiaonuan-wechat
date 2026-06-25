@@ -134,3 +134,26 @@ async def style_reload():
     """重新加载风格数据"""
     reload_style()
     return {"status": "ok", "message": "风格数据已重新加载 🔄"}
+
+
+# ========== 主动消息接口 ==========
+
+@router.get("/proactive-status")
+async def proactive_status():
+    """查看主动消息引擎状态"""
+    from ..services.proactive import engine
+    return {
+        "engine_running": engine._running,
+        "users_tracked": len(engine._log),
+        "status": "主动消息引擎运行中 💬" if engine._running else "引擎未启动"
+    }
+
+
+@router.post("/proactive-trigger/{user_id}")
+async def trigger_proactive(user_id: str):
+    """手动触发主动消息，给指定用户发一条"""
+    from ..services.proactive import generate_msg
+    msg = await generate_msg(user_id, "short")
+    if msg:
+        return {"user_id": user_id, "message": msg, "status": "已生成 ✅"}
+    return {"status": "生成失败", "message": None}

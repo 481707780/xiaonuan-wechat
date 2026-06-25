@@ -7,11 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import asyncio
 import os
 
 from .config import HOST, PORT, COMPANION_NAME
 from .routers import chat, wechat
 from .services.style_loader import load_style_profile, reload as reload_style
+from .services.proactive import engine as proactive_engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,7 +34,14 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️  未找到风格数据文件，将使用默认提示词")
 
+    # 启动主动消息引擎
+    asyncio.ensure_future(proactive_engine.run(interval=30))
+    logger.info(f"💬 主动消息引擎已启动")
+
     yield
+
+    # 停止主动引擎
+    proactive_engine.stop()
     logger.info(f"💤 {COMPANION_NAME} 进入梦乡…")
 
 

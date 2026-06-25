@@ -71,3 +71,37 @@ async def api_history(user_id: str):
     """获取对话历史"""
     context = await session_manager.get_context(user_id)
     return {"user_id": user_id, "messages": context, "count": len(context)}
+
+
+@router.get("/chat/proactive-poll/{user_id}")
+async def proactive_poll(user_id: str):
+    """轮询主动消息（web前端用）"""
+    from ..services.proactive import generate_msg, get_current_time_window
+    from ..services.session import session_manager
+    
+    # 检查是否需要主动发消息
+    sessions = await session_manager.get_all_sessions()
+    now = __import__("datetime").datetime.now()
+    
+    for s in sessions:
+        if s["user_id"] != user_id:
+            continue
+        hours = (now.timestamp() - s["last_active"]) / 3600
+        if hours > 48:
+            return {"proactive": False, "message": None}
+        
+        window = get_current_time_window()
+        if window:
+            msg = await generate_msg(user_id, window)
+            if msg:
+                return {"proactive": True, "message": msg, "trigger": window}
+        
+        # 沉默检测
+        from ..services.proactive import SILENCE_TRIGGERS
+        for st, (mn, mx) in SILENCE_TRIGGERS.items():
+            if mn <= hours <= mx:
+                msg = await generate_msg(user_id, st)
+                if msg:
+                    return {"proactive": True, "message": msg, "trigger": st}
+    
+    return {"proactive": False, "message": None}
