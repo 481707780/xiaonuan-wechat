@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # 小暖 - 微信公众号 Webhook（风格数据注入版）
 # ============================================================
 import time
@@ -35,6 +35,27 @@ def _build_text_reply(from_user: str, to_user: str, content: str) -> str:
 <MsgType><![CDATA[text]]></MsgType>
 <Content><![CDATA[{content}]]></Content>
 </xml>"""
+
+
+
+
+# 持有后台任务的强引用，防止被 GC 回收
+_background_tasks = set()
+
+async def _delayed_send(to_user, text, delay):
+    await asyncio.sleep(delay)
+    try:
+        from ..services.wechat_api import wechat_client
+        sent = await wechat_client.send_text(to_user, text)
+        if sent:
+            logger.info(f"[后续消息] 发送成功: {text[:30]}")
+        else:
+            logger.warning(f"[后续消息] 发送失败(返回False): {text[:30]}")
+        return sent
+    except Exception as e:
+        logger.error(f"[后续消息] 发送异常: {e}")
+        return False
+
 
 
 @router.get("")
@@ -76,14 +97,27 @@ async def wechat_message(
             if not content:
                 return Response(content="success", media_type="text/plain")
 
-            # 调用 AI 伴侣（已注入风格数据）
-            reply = await chat(
+            # 调用 AI 伴侣，支持分多条回复
+            replies = await chat(
                 user_id=from_user,
                 message=content,
             )
+            first_reply = replies[0] if replies else "嗯…让我想想怎么回你~"
 
-            # 返回 XML 格式回复
-            xml_reply = _build_text_reply(from_user, to_user, reply)
+            # 多条消息用换行分隔合并为一条微信回复
+            if len(replies) > 1:
+                combined = "\n\n".join(replies)
+            else:
+                combined = first_reply
+
+            # 尝试通过客服消息发送后续消息（部分账号不支持）
+            if len(replies) > 1:
+                for i, part in enumerate(replies[1:], 1):
+                    task = asyncio.create_task(_delayed_send(from_user, part, delay=3 + i * 2))
+                    _background_tasks.add(task)
+                    task.add_done_callback(_background_tasks.discard)
+
+            xml_reply = _build_text_reply(from_user, to_user, combined)
             return Response(content=xml_reply, media_type="application/xml")
 
         elif msg_type == "event":

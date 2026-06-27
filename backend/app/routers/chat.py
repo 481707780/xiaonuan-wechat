@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # Soul Companion - 聊天 API 路由
 # ============================================================
 from fastapi import APIRouter, HTTPException
@@ -25,27 +25,32 @@ class ClearRequest(BaseModel):
     user_id: str
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat")
 async def api_chat(req: ChatRequest):
-    """非流式聊天"""
-    reply = await chat(
+    """非流式聊天，支持分多条回复"""
+    replies = await chat(
         user_id=req.user_id,
         message=req.message.strip(),
         companion_name=req.companion_name
     )
-    return ChatResponse(reply=reply, user_id=req.user_id)
+    return {"reply": replies[0], "extra_replies": replies[1:], "user_id": req.user_id}
 
 
 @router.post("/chat/stream")
 async def api_chat_stream(req: ChatRequest):
-    """流式聊天（SSE）"""
+    """流式聊天（SSE），多条消息时只流式输出第一条"""
     async def event_stream():
-        async for token in chat_stream(
+        # 非流式调用 chat() 取第一条流式输出
+        replies = await chat(
             user_id=req.user_id,
             message=req.message.strip(),
             companion_name=req.companion_name
-        ):
+        )
+        first = replies[0] if replies else ""
+        # 逐字输出（模拟流式效果）
+        for token in first:
             yield f"data: {token}\n\n"
+            await __import__("asyncio").sleep(0.02)
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(
@@ -105,3 +110,4 @@ async def proactive_poll(user_id: str):
                     return {"proactive": True, "message": msg, "trigger": st}
     
     return {"proactive": False, "message": None}
+

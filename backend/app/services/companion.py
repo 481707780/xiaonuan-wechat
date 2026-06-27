@@ -71,13 +71,23 @@ async def chat(user_id, message, companion_name=None):
             temperature=TEMPERATURE,
         )
         reply = response.choices[0].message.content.strip()
-        await session_manager.add_message(user_id, "assistant", reply)
-        return reply
+        
+        # 按 ||| 拆分成多条消息
+        parts = [p.strip() for p in reply.split("|||") if p.strip()]
+        if not parts:
+            parts = [reply]
+        
+        # 每条都存为独立的 assistant 消息
+        for part in parts:
+            await session_manager.add_message(user_id, "assistant", part)
+        
+        # 返回消息列表
+        return parts
     except Exception as e:
         logger.error(f"AI 调用失败: {e}")
         fallback = "唔…我刚刚走神了一下下，能再说一遍吗？😊"
         await session_manager.add_message(user_id, "assistant", fallback)
-        return fallback
+        return [fallback]
 
 
 async def chat_stream(user_id, message, companion_name=None):

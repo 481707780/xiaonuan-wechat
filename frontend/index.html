@@ -303,6 +303,17 @@ async function send() {
     const data = await resp.json();
     removeTyping(typing);
     appendBubble('you', data.reply);
+    // 如果还有后续消息，每条间隔 2-4 秒展示
+    if (data.extra_replies && data.extra_replies.length > 0) {
+      data.extra_replies.forEach((extra, i) => {
+        setTimeout(() => {
+          appendBubble('you', extra);
+          if (i === data.extra_replies.length - 1) {
+            scrollToBottom();
+          }
+        }, (i + 1) * 2500);  // 每条间隔 2.5 秒
+      });
+    }
     // Detect mood from reply for quick replies
     const mood = data.reply.includes('开心') || data.reply.includes('棒') ? 'happy'
       : data.reply.includes('难过') || data.reply.includes('累') ? 'sad' : 'default';

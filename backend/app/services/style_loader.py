@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # 小暖 - 聊天风格数据注入服务
 # 将分析好的聊天风格数据注入到 AI 系统提示词中
 # ============================================================
@@ -29,6 +29,41 @@ def _ensure_data_dir() -> bool:
         return False
     return True
 
+
+
+def load_user_profile():
+    """加载用户画像（从简历提取的个人信息）"""
+    global _cached_profile
+    p = load_style_profile()  # 确保数据目录存在
+    profile_path = DATA_DIR / "user_profile.json"
+    if not profile_path.exists():
+        logger.warning(f"用户画像文件不存在: {profile_path}")
+        return None
+    try:
+        with open(profile_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        logger.info("✅ 加载用户画像：" + data.get("name", "unknown"))
+        return data
+    except Exception as e:
+        logger.error(f"加载用户画像失败: {e}")
+        return None
+
+
+def load_user_profile():
+    """加载用户画像（从简历提取的个人信息）"""
+    p = load_style_profile()
+    profile_path = DATA_DIR / "user_profile.json"
+    if not profile_path.exists():
+        logger.warning(f"用户画像文件不存在: {profile_path}")
+        return None
+    try:
+        with open(profile_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        logger.info("加载用户画像: " + data.get("name", "unknown"))
+        return data
+    except Exception as e:
+        logger.error(f"加载用户画像失败: {e}")
+        return None
 
 def load_style_profile() -> Optional[dict]:
     """加载风格分析概要"""
@@ -212,7 +247,32 @@ def build_sillytavern_style_examples(max_examples=60):
 def build_sillytavern_system_prompt(base_prompt):
     """构建 SillyTavern 风格的增强系统提示词"""
     examples_text = build_sillytavern_style_examples()
+    
+    # 注入用户画像
+    user_profile = load_user_profile()
+    profile_text = ""
+    if user_profile:
+        profile_text = "\n\n【关于对方的信息 - 记住这些，聊天中自然提及】\n"
+        profile_text += f"- 对方叫：{user_profile.get('name', '')}（昵称：{user_profile.get('nickname', '')}）\n"
+        profile_text += f"- 学校/专业：{user_profile.get('education', {}).get('school', '')} {user_profile.get('education', {}).get('major', '')}（{user_profile.get('education', {}).get('degree', '')}）\n"
+        profile_text += f"- 年级：{user_profile.get('education', {}).get('period', '')}，GPA {user_profile.get('education', {}).get('gpa', '')}\n"
+        profile_text += f"- 家乡：{user_profile.get('hometown', '')}，出生于{user_profile.get('birth', '')}\n"
+        
+        internships = user_profile.get("internships", [])
+        if internships:
+            companies = "、".join(i["company"] for i in internships)
+            profile_text += f"- 实习经历：{companies}\n"
+        
+        profile_text += f"- 英语：{user_profile.get('english', '')}\n"
+        profile_text += f"- 爱好：{'、'.join(user_profile.get('hobbies', []))}\n"
+        profile_text += "\n注意：自然地融入对话，不要一次性全说出来，像熟悉的朋友一样知道这些信息就好"
+    
     if "{style_examples}" in base_prompt:
-        return base_prompt.replace("{style_examples}", examples_text)
+        result = base_prompt.replace("{style_examples}", examples_text)
     else:
-        return base_prompt + chr(10) * 2 + "【风格参考】" + chr(10) + examples_text
+        result = base_prompt + chr(10) * 2 + "【风格参考】" + chr(10) + examples_text
+    
+    if profile_text:
+        result += profile_text
+    
+    return result
